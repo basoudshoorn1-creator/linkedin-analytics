@@ -113,7 +113,7 @@ def cluster_score(fol_sheets, name):
 st.markdown("## LinkedIn Analytics Dashboard")
 st.sidebar.markdown("### Data uploads")
 content_files = st.sidebar.file_uploader("Content export(s)", type=["xls"], accept_multiple_files=True)
-followers_file = st.sidebar.file_uploader("Volgers export", type=["xls"])
+followers_files = st.sidebar.file_uploader("Volgers exports (meerdere mag)", type=["xls"], accept_multiple_files=True)
 visitors_file = st.sidebar.file_uploader("Bezoekers export", type=["xls"])
 competitor_file = st.sidebar.file_uploader("Concurrenten export", type=["xlsx"])
 
@@ -132,7 +132,21 @@ all_months=sorted(df_posts["Maand"].unique())
 strategy_idx=st.sidebar.selectbox("Nieuwe strategie vanaf",options=all_months,index=len(all_months)-1)
 
 fol_growth=fol_sheets=vis_data=vis_sheets=df_comp=None
-if followers_file: fol_growth,fol_sheets=load_followers(followers_file.read())
+fol_history = []  # list of (date, clusters_dict)
+if followers_files:
+    # Load all followers exports, sort by date
+    fol_loaded = []
+    for ff in followers_files:
+        g, s = load_followers(ff.read())
+        export_date = g["Datum"].max()
+        clusters = {c: cluster_score(s, c) for c in CLUSTER_DEF.keys()}
+        fol_loaded.append((export_date, g, s, clusters))
+    fol_loaded.sort(key=lambda x: x[0])
+    # Use most recent for current display
+    fol_growth = fol_loaded[-1][1]
+    fol_sheets = fol_loaded[-1][2]
+    # Build history for trend chart
+    fol_history = [(d, cl) for d, g, s, cl in fol_loaded]
 if visitors_file: vis_data,vis_sheets=load_visitors(visitors_file.read())
 if competitor_file: df_comp=load_competitors(competitor_file.read())
 
@@ -304,6 +318,7 @@ if "🎯 Strategie clusters" in tm:
         target_pct = 5.0
 
         st.markdown(f"Volgers per strategiecluster · nulmeting **{fol_growth['Datum'].max().strftime('%b %Y')}** · Doel: **+5% groei per jaar**")
+        st.caption(f"Upload elke 1e van de maand een nieuwe volgers-export om groei per cluster bij te houden. {len(fol_history)} export(s) geladen.")
 
         # KPI cards with target indicator
         cols=st.columns(len(cnames))
@@ -312,7 +327,47 @@ if "🎯 Strategie clusters" in tm:
             cols[i].metric(n, f"{v:,}".replace(",","."), help=f"Doel over 1 jaar: {target:,}".replace(",","."))
 
         st.markdown('<p class="section-head">Huidige clustergrootte · nulmeting april 2026</p>',unsafe_allow_html=True)
-        st.caption("Upload volgend jaar een nieuwe volgers-export naast deze om groei per cluster te zien.")
+
+        # Trend chart if multiple exports available
+        if len(fol_history) >= 2:
+            st.markdown('<p class="section-head">Groei per cluster over tijd</p>',unsafe_allow_html=True)
+            fig_trend = go.Figure()
+            cluster_colors_map = dict(zip(cnames, ccols))
+            for cn in cnames:
+                dates = [d.strftime("%b %Y") for d, _ in fol_history]
+                values = [cl[cn] for _, cl in fol_history]
+                baseline = values[0]
+                pct_growth = [(v - baseline) / baseline * 100 for v in values]
+                fig_trend.add_trace(go.Scatter(
+                    x=dates, y=pct_growth,
+                    mode="lines+markers",
+                    name=cn,
+                    line=dict(color=cluster_colors_map[cn], width=2),
+                    marker=dict(size=8),
+                    hovertemplate=f"<b>{cn}</b><br>%{{x}}<br>Groei: %{{y:.1f}}%<extra></extra>",
+                ))
+            fig_trend.add_hline(y=5, line_dash="dot", line_color="rgba(0,0,0,0.3)",
+                annotation_text="Doel +5%", annotation_position="right")
+            fig_trend.update_layout(**base_layout(height=320),
+                yaxis=dict(showgrid=True, gridcolor="#eee", ticksuffix="%"),
+                xaxis=dict(showgrid=False),
+                legend=dict(orientation="h", y=1.08))
+            st.plotly_chart(fig_trend, use_container_width=True)
+
+            # Growth table
+            st.markdown('<p class="section-head">Groei t.o.v. nulmeting</p>', unsafe_allow_html=True)
+            baseline_date, baseline_cl = fol_history[0]
+            current_date, current_cl = fol_history[-1]
+            growth_rows = []
+            for cn in cnames:
+                b, c = baseline_cl[cn], current_cl[cn]
+                diff = c - b
+                pct = (diff / b * 100) if b > 0 else 0
+                on_track = "✅" if pct >= 5 else ("🟡" if pct >= 2.5 else "🔴")
+                growth_rows.append({"Cluster": cn, baseline_date.strftime("%b %Y"): f"{b:,}".replace(",","."), current_date.strftime("%b %Y"): f"{c:,}".replace(",","."), "Groei": f"{diff:+,}".replace(",","."), "%": f"{pct:+.1f}%", "Status": on_track})
+            st.dataframe(pd.DataFrame(growth_rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Upload elke 1e van de maand een nieuwe volgers-export om groei per cluster te zien. Zodra je 2+ exports hebt verschijnt hier een trendlijn.")
 
         fig_cl=go.Figure(go.Bar(
             x=cnames, y=cvals, marker_color=ccols,
