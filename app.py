@@ -167,10 +167,30 @@ st.caption(f"📅 Periode: {periode_van} – {periode_tot} · {n_exports} export
 st.markdown(f'<div class="strategy-banner">📌 Nieuwe strategie gestart vanaf <strong>{strategy_idx}</strong> — data vóór deze maand is de baseline.</div>',unsafe_allow_html=True)
 periode_van = df_stats["Datum"].min().strftime("%b %Y")
 periode_tot = df_stats["Datum"].max().strftime("%b %Y")
+# Growth calculations vs first half of period
+half = len(monthly) // 2
+views_first = int(monthly.iloc[:half]["Weergaven"].sum()) if half > 0 else 0
+views_second = int(monthly.iloc[half:]["Weergaven"].sum()) if half > 0 else 0
+views_growth = ((views_second - views_first) / views_first * 100) if views_first > 0 else 0
+posts_first = len(df_posts[df_posts["Maand"] <= monthly.iloc[half-1]["Maand"]]) if half > 0 else 0
+posts_second = len(df_posts[df_posts["Maand"] > monthly.iloc[half-1]["Maand"]]) if half > 0 else 0
+posts_growth = ((posts_second - posts_first) / posts_first * 100) if posts_first > 0 else 0
+mid = monthly.iloc[half]["Maand"] if half < len(monthly) else periode_tot
+
 c1,c2,c3,c4=st.columns(4)
-c1.metric(f"Weergaven ({periode_van} – {periode_tot})",f"{int(monthly['Weergaven'].sum()):,}".replace(",","."))
-c2.metric("Beste maand",monthly.loc[monthly['Weergaven'].idxmax(),'Maand'],f"{int(monthly['Weergaven'].max()):,} views".replace(",","."))
-c3.metric(f"Posts ({periode_van} – {periode_tot})",len(df_posts))
+c1.metric(
+    f"Weergaven ({periode_van} – {periode_tot})",
+    f"{int(monthly['Weergaven'].sum()):,}".replace(",","."),
+    delta=f"{views_growth:+.0f}% ({mid}+) vs eerder",
+    help=f"Eerste helft: {views_first:,} · Tweede helft: {views_second:,}".replace(",",".")
+)
+c2.metric("Beste maand", monthly.loc[monthly['Weergaven'].idxmax(),'Maand'], f"{int(monthly['Weergaven'].max()):,} views".replace(",","."))
+c3.metric(
+    f"Posts ({periode_van} – {periode_tot})",
+    len(df_posts),
+    delta=f"{posts_growth:+.0f}% ({mid}+) vs eerder",
+    help=f"Eerste helft: {posts_first} posts · Tweede helft: {posts_second} posts"
+)
 with c4:
     eng_arrow = "+" if avg_new >= avg_old else "-"
     eng_delta = abs(avg_new - avg_old)
