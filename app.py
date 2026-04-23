@@ -177,7 +177,7 @@ posts_second = len(df_posts[df_posts["Maand"] > monthly.iloc[half-1]["Maand"]]) 
 posts_growth = ((posts_second - posts_first) / posts_first * 100) if posts_first > 0 else 0
 mid = monthly.iloc[half]["Maand"] if half < len(monthly) else periode_tot
 
-c1,c2,c3,c4=st.columns(4)
+c1,c2,c3,c4,c5=st.columns(5)
 c1.metric(
     f"Weergaven ({periode_van} – {periode_tot})",
     f"{int(monthly['Weergaven'].sum()):,}".replace(",","."),
@@ -191,6 +191,23 @@ c3.metric(
     delta=f"{posts_growth:+.0f}% ({mid}+) vs eerder",
     help=f"Eerste helft: {posts_first} posts · Tweede helft: {posts_second} posts"
 )
+# Follower growth % — requires followers file
+if fol_growth is not None:
+    import os, json
+    _cfg = os.path.join(os.path.dirname(__file__), "config.json")
+    _cur = 24875
+    if os.path.exists(_cfg):
+        try: _cur = json.load(open(_cfg)).get("current_total", 24875)
+        except: pass
+    _new = int(fol_growth["Totaal aantal volgers"].sum())
+    _start = _cur - _new
+    _fol_pct = (_new / _start * 100) if _start > 0 else 0
+    c5.metric(
+        f"Volgers groei ({periode_van} – {periode_tot})",
+        f"+{_new:,}".replace(",","."),
+        delta=f"{_fol_pct:+.1f}% t.o.v. startdatum",
+        help=f"Van {_start:,} naar {_cur:,} volgers".replace(",",".")
+    )
 with c4:
     eng_arrow = "+" if avg_new >= avg_old else "-"
     eng_delta = abs(avg_new - avg_old)
