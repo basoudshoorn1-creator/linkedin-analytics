@@ -256,9 +256,25 @@ if "👁 Bezoekers" in tm:
         ucols=[c for c in vis_data.columns if "unieke bezoekers" in c.lower() and "totaal" in c.lower()]
         tc=vcols[0] if vcols else vis_data.columns[1]
         uc=ucols[0] if ucols else vis_data.columns[2]
-        c1,c2=st.columns(2)
-        c1.metric("Totaal paginaweergaven",f"{int(vis_data[tc].sum()):,}".replace(",","."))
-        c2.metric("Unieke bezoekers",f"{int(vis_data[uc].sum()):,}".replace(",","."))
+        # Monthly comparison
+        vis_data["Maand"] = vis_data["Datum"].dt.to_period("M").astype(str)
+        vis_monthly = vis_data.groupby("Maand").agg(Views=(tc,"sum"), Uniek=(uc,"sum")).reset_index()
+        vis_van = vis_data["Datum"].min().strftime("%b %Y")
+        vis_tot = vis_data["Datum"].max().strftime("%b %Y")
+        cur_views = int(vis_monthly.iloc[-1]["Views"]) if len(vis_monthly) >= 1 else 0
+        prev_views = int(vis_monthly.iloc[-2]["Views"]) if len(vis_monthly) >= 2 else 0
+        cur_uniek = int(vis_monthly.iloc[-1]["Uniek"]) if len(vis_monthly) >= 1 else 0
+        prev_uniek = int(vis_monthly.iloc[-2]["Uniek"]) if len(vis_monthly) >= 2 else 0
+        cur_maand = vis_monthly.iloc[-1]["Maand"] if len(vis_monthly) >= 1 else ""
+        prev_maand = vis_monthly.iloc[-2]["Maand"] if len(vis_monthly) >= 2 else ""
+
+        c1,c2,c3,c4=st.columns(4)
+        c1.metric(f"Paginaweergaven ({vis_van} – {vis_tot})", f"{int(vis_data[tc].sum()):,}".replace(",","."))
+        c2.metric(f"Unieke bezoekers ({vis_van} – {vis_tot})", f"{int(vis_data[uc].sum()):,}".replace(",","."))
+        c3.metric(f"Views {cur_maand}", f"{cur_views:,}".replace(",","."),
+            delta=f"{cur_views-prev_views:+,} vs {prev_maand}".replace(",","."))
+        c4.metric(f"Uniek {cur_maand}", f"{cur_uniek:,}".replace(",","."),
+            delta=f"{cur_uniek-prev_uniek:+,} vs {prev_maand}".replace(",","."))
         st.markdown('<p class="section-head">Bezoekers over tijd</p>',unsafe_allow_html=True)
         fig_v=go.Figure()
         fig_v.add_trace(go.Scatter(x=vis_data["Datum"],y=vis_data[tc],line=dict(color=BLUE,width=2),name="Paginaweergaven"))
