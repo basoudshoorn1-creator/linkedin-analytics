@@ -154,9 +154,12 @@ periode_van = df_stats["Datum"].min().strftime("%b %Y")
 periode_tot = df_stats["Datum"].max().strftime("%b %Y")
 c1,c2,c3,c4=st.columns(4)
 c1.metric(f"Weergaven ({periode_van} – {periode_tot})",f"{int(monthly['Weergaven'].sum()):,}".replace(",","."))
-c2.metric(f"Gem. engagement nieuwe strategie ({strategy_idx}+)",f"{avg_new:.1f}%",delta=f"{avg_new-avg_old:+.1f}% vs baseline")
-c3.metric("Beste maand",monthly.loc[monthly['Weergaven'].idxmax(),'Maand'],f"{int(monthly['Weergaven'].max()):,} views".replace(",","."))
-c4.metric(f"Posts ({periode_van} – {periode_tot})",len(df_posts))
+c2.metric("Beste maand",monthly.loc[monthly['Weergaven'].idxmax(),'Maand'],f"{int(monthly['Weergaven'].max()):,} views".replace(",","."))
+c3.metric(f"Posts ({periode_van} – {periode_tot})",len(df_posts))
+with c4:
+    eng_arrow = "+" if avg_new >= avg_old else "-"
+    eng_delta = abs(avg_new - avg_old)
+    st.markdown(f'<div style="background:#EA5B0C;border-radius:10px;padding:1rem;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.75);margin-bottom:4px;">Gem. engagement nieuwe strategie</div><div style="font-size:26px;font-weight:500;color:white;">{avg_new:.1f}%</div><div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:2px;">{eng_arrow}{eng_delta:.1f}% vs baseline</div></div>', unsafe_allow_html=True)
 st.markdown("---")
 
 tab_names=["📊 Content"]
