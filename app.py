@@ -281,8 +281,7 @@ if "🎯 Strategie clusters" in tm:
         cnames=list(CLUSTER_DEF.keys())
         ccols=[ORANGE,BLUE,GREEN,"#8B5CF6","#F59E0B"]
 
-        # Check if multiple followers exports uploaded for growth comparison
-        n_fol_files = len([f for f in (followers_files if isinstance(followers_files, list) else [followers_files]) if f is not None]) if followers_files else 1
+
 
         # Current values
         cvals=[cluster_score(fol_sheets,c) for c in cnames]
