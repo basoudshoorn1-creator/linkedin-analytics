@@ -232,17 +232,39 @@ with tm["📊 Content"]:
 # ── VOLGERS TAB ──
 if "👥 Volgers" in tm:
     with tm["👥 Volgers"]:
-        fol_growth["Cumulatief"]=fol_growth["Totaal aantal volgers"].cumsum()
         total_new=int(fol_growth["Totaal aantal volgers"].sum())
-        c1,c2,c3=st.columns(3)
-        c1.metric("Nieuwe volgers (periode)",f"{total_new:,}".replace(",","."))
-        c2.metric("Gem. per dag",f"{fol_growth['Totaal aantal volgers'].mean():.1f}")
-        c3.metric("Piek dag",fol_growth.loc[fol_growth["Totaal aantal volgers"].idxmax(),"Datum"].strftime("%d %b %Y"),f"{int(fol_growth['Totaal aantal volgers'].max())} volgers")
-        st.markdown('<p class="section-head">Groei over tijd</p>',unsafe_allow_html=True)
+        # Load saved follower count from config file
+        import os, json
+        config_path = os.path.join(os.path.dirname(__file__), "config.json")
+        saved_total = 24875
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as _f:
+                    saved_total = json.load(_f).get("current_total", 24875)
+            except: pass
+        current_total = st.sidebar.number_input("Huidig totaal volgers", value=saved_total, step=1, help="Pas aan en sla op als je volgersaantal verandert")
+        if current_total != saved_total:
+            try:
+                with open(config_path, "w") as _f:
+                    json.dump({"current_total": current_total}, _f)
+            except: pass
+        start_count = current_total - total_new
+        fol_growth["Cumulatief"] = start_count + fol_growth["Totaal aantal volgers"].cumsum()
+
+        c1,c2,c3,c4=st.columns(4)
+        c1.metric("Totaal volgers nu", f"{current_total:,}".replace(",","."))
+        c2.metric("Nieuwe volgers (periode)", f"{total_new:,}".replace(",","."))
+        c3.metric("Gem. per dag", f"{fol_growth['Totaal aantal volgers'].mean():.1f}")
+        c4.metric("Piek dag", fol_growth.loc[fol_growth["Totaal aantal volgers"].idxmax(),"Datum"].strftime("%d %b %Y"), f"{int(fol_growth['Totaal aantal volgers'].max())} volgers")
+
+        st.markdown('<p class="section-head">Totaal volgers over tijd</p>',unsafe_allow_html=True)
         fig_f=go.Figure()
-        fig_f.add_trace(go.Scatter(x=fol_growth["Datum"],y=fol_growth["Cumulatief"],fill="tozeroy",line=dict(color=ORANGE,width=2),fillcolor="rgba(234,91,12,0.13)",name="Cumulatief"))
-        fig_f.add_trace(go.Bar(x=fol_growth["Datum"],y=fol_growth["Totaal aantal volgers"],marker_color=BLUE,opacity=0.5,name="Per dag",yaxis="y2"))
-        fig_f.update_layout(**base_layout(height=300),yaxis=dict(showgrid=True,gridcolor="#eee"),yaxis2=dict(overlaying="y",side="right",showgrid=False),legend=dict(orientation="h",y=1.08))
+        fig_f.add_trace(go.Scatter(x=fol_growth["Datum"],y=fol_growth["Cumulatief"],fill="tozeroy",line=dict(color=ORANGE,width=2),fillcolor="rgba(234,91,12,0.13)",name="Totaal volgers"))
+        fig_f.add_trace(go.Bar(x=fol_growth["Datum"],y=fol_growth["Totaal aantal volgers"],marker_color=BLUE,opacity=0.5,name="Nieuw per dag",yaxis="y2"))
+        fig_f.update_layout(**base_layout(height=320),
+            yaxis=dict(showgrid=True,gridcolor="#eee",title="Totaal"),
+            yaxis2=dict(overlaying="y",side="right",showgrid=False,title="Nieuw per dag"),
+            legend=dict(orientation="h",y=1.08))
         st.plotly_chart(fig_f,use_container_width=True)
         d1,d2=st.columns(2)
         with d1:
