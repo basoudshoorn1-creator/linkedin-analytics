@@ -119,19 +119,37 @@ def base_layout(**kwargs):
 st.markdown("## Leiden Bio Science Park · LinkedIn Analytics")
 
 # ── Upload ────────────────────────────────────────────────────────────────────
-uploaded = st.file_uploader(
-    "Upload LinkedIn export (.xls)",
+uploaded_files = st.file_uploader(
+    "Upload LinkedIn export(s) (.xls) — meerdere bestanden tegelijk mag",
     type=["xls"],
-    help="Download via: LinkedIn Page → Analytics → Export (rechtsboven)",
+    accept_multiple_files=True,
+    help="Download via: LinkedIn Page → Analytics → Export (rechtsboven). Upload meerdere exports om periodes samen te voegen.",
 )
 
-if uploaded is None:
-    st.info("Upload een LinkedIn Analytics export om te beginnen. "
+if not uploaded_files:
+    st.info("Upload één of meerdere LinkedIn Analytics exports om te beginnen. "
             "Je vindt de export op je LinkedIn Page onder Analytics → Export.")
     st.stop()
 
-with st.spinner("Data laden..."):
-    df_posts, df_stats = load_xls(uploaded.read())
+with st.spinner(f"Data laden ({len(uploaded_files)} bestand(en))..."):
+    all_posts = []
+    all_stats = []
+    for f in uploaded_files:
+        posts, stats = load_xls(f.read())
+        all_posts.append(posts)
+        all_stats.append(stats)
+
+    df_posts = pd.concat(all_posts, ignore_index=True)
+    df_posts = df_posts.drop_duplicates(subset=["Link"], keep="last")
+    df_posts = df_posts.sort_values("Aangemaakt").reset_index(drop=True)
+
+    df_stats = pd.concat(all_stats, ignore_index=True)
+    df_stats = df_stats.drop_duplicates(subset=["Datum"], keep="last")
+    df_stats = df_stats.sort_values("Datum").reset_index(drop=True)
+
+if len(uploaded_files) > 1:
+    st.success(f"{len(uploaded_files)} exports samengevoegd · {len(df_posts)} unieke posts · "
+               f"{df_stats['Datum'].min().strftime('%b %Y')} – {df_stats['Datum'].max().strftime('%b %Y')}")
 
 monthly = monthly_agg(df_stats)
 days    = day_agg(df_posts)
