@@ -5,7 +5,7 @@ import plotly.express as px
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Leiden Bio Science Park · LinkedIn Analytics",
+    page_title="LinkedIn Analytics Dashboard",
     page_icon="🧬",
     layout="wide",
 )
@@ -116,7 +116,7 @@ def base_layout(**kwargs):
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Leiden Bio Science Park · LinkedIn Analytics")
+st.markdown("## LinkedIn Analytics Dashboard")
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 uploaded_files = st.file_uploader(
