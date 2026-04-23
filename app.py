@@ -140,8 +140,9 @@ df_stats_m=df_stats.copy(); df_stats_m["Maand"]=df_stats_m["Datum"].dt.to_period
 monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Reposts=("Reposts_totaal","sum")).reset_index()
 days=df_posts[df_posts["Dag"].isin(DAG_NL)].groupby("Dag").agg(Gem_weergaven=("Weergaven","mean"),Gem_engagement=("Engagement_pct","mean"),Aantal_posts=("Titel_kort","count")).reset_index()
 posts_new=df_posts[df_posts["Maand"]>=strategy_idx]; posts_old=df_posts[df_posts["Maand"]<strategy_idx]
-avg_new=posts_new[posts_new["Engagement_pct"]>0]["Engagement_pct"].mean() if len(posts_new) else 0
-avg_old=posts_old[posts_old["Engagement_pct"]>0]["Engagement_pct"].mean() if len(posts_old) else 0
+# Only posts with actual views, use median to avoid outlier distortion
+avg_new=posts_new[posts_new["Weergaven"]>0]["Engagement_pct"].median() if len(posts_new[posts_new["Weergaven"]>0]) else 0
+avg_old=posts_old[posts_old["Weergaven"]>0]["Engagement_pct"].median() if len(posts_old[posts_old["Weergaven"]>0]) else 0
 
 # Period subtitle
 periode_van = df_stats["Datum"].min().strftime("%d %b %Y")
@@ -277,16 +278,45 @@ if "👁 Bezoekers" in tm:
 # ── STRATEGIE CLUSTERS TAB ──
 if "🎯 Strategie clusters" in tm:
     with tm["🎯 Strategie clusters"]:
-        st.markdown("Volgers per strategiecluster. Doel: **minimaal 5% groei per cluster per kwartaal.**")
         cnames=list(CLUSTER_DEF.keys())
-        cvals=[cluster_score(fol_sheets,c) for c in cnames]
         ccols=[ORANGE,BLUE,GREEN,"#8B5CF6","#F59E0B"]
+
+        # Check if multiple followers exports uploaded for growth comparison
+        n_fol_files = len([f for f in (followers_files if isinstance(followers_files, list) else [followers_files]) if f is not None]) if followers_files else 1
+
+        # Current values
+        cvals=[cluster_score(fol_sheets,c) for c in cnames]
+        target_pct = 5.0
+
+        st.markdown(f"Volgers per strategiecluster · nulmeting **{fol_growth['Datum'].max().strftime('%b %Y')}** · Doel: **+5% groei per jaar**")
+
+        # KPI cards with target indicator
         cols=st.columns(len(cnames))
         for i,(n,v) in enumerate(zip(cnames,cvals)):
-            cols[i].metric(n,f"{v:,}".replace(",","."))
-        st.markdown('<p class="section-head">Clustergrootte</p>',unsafe_allow_html=True)
-        fig_cl=go.Figure(go.Bar(x=cnames,y=cvals,marker_color=ccols,text=[f"{v:,}".replace(",",".") for v in cvals],textposition="outside"))
-        fig_cl.update_layout(**base_layout(height=300),xaxis=dict(showgrid=False),yaxis=dict(showgrid=True,gridcolor="#eee"),bargap=0.4)
+            target = int(v * (1 + target_pct/100))
+            cols[i].metric(n, f"{v:,}".replace(",","."), help=f"Doel over 1 jaar: {target:,}".replace(",","."))
+
+        st.markdown('<p class="section-head">Huidige clustergrootte · nulmeting april 2026</p>',unsafe_allow_html=True)
+        st.caption("Upload volgend jaar een nieuwe volgers-export naast deze om groei per cluster te zien.")
+
+        fig_cl=go.Figure(go.Bar(
+            x=cnames, y=cvals, marker_color=ccols,
+            text=[f"{v:,}".replace(",",".") for v in cvals],
+            textposition="outside",
+            customdata=[int(v*1.05) for v in cvals],
+            hovertemplate="<b>%{x}</b><br>Huidig: %{y:,}<br>Doel (+5%): %{customdata:,}<extra></extra>",
+        ))
+        # Add target line per cluster as scatter
+        fig_cl.add_trace(go.Scatter(
+            x=cnames, y=[int(v*1.05) for v in cvals],
+            mode="markers", marker=dict(symbol="line-ew", size=20, color="rgba(0,0,0,0.3)", line=dict(width=2, color="rgba(0,0,0,0.3)")),
+            name="Doel (+5%)", hovertemplate="Doel: %{y:,}<extra></extra>",
+        ))
+        fig_cl.update_layout(**base_layout(height=320),
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=True,gridcolor="#eee"),
+            bargap=0.4,
+            legend=dict(orientation="h",y=1.08))
         st.plotly_chart(fig_cl,use_container_width=True)
         st.markdown('<p class="section-head">Internationale spreiding</p>',unsafe_allow_html=True)
         intl_cities=["Boston","Parijs","Zürich","Berlijn","Barcelona","London","Kopenhagen","Stockholm","München","Leuven","Gent","New York","Cambridge","Oxford","India"]
