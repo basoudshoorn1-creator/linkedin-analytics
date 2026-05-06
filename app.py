@@ -129,7 +129,8 @@ with st.spinner("Data laden..."):
     df_stats=pd.concat(all_stats,ignore_index=True).drop_duplicates(subset=["Datum"],keep="last").sort_values("Datum").reset_index(drop=True)
 
 all_months=sorted(df_posts["Maand"].unique())
-strategy_idx=st.sidebar.selectbox("Nieuwe strategie vanaf",options=all_months,index=len(all_months)-1)
+default_idx = all_months.index("2026-04") if "2026-04" in all_months else len(all_months)-1
+strategy_idx=st.sidebar.selectbox("Nieuwe strategie vanaf",options=all_months,index=default_idx)
 
 fol_growth=fol_sheets=vis_data=vis_sheets=df_comp=None
 fol_history = []  # list of (date, clusters_dict)
