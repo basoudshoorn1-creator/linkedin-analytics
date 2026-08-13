@@ -226,10 +226,19 @@ tm={n:o for n,o in zip(tab_names,tab_objs)}
 # ── CONTENT TAB ──
 with tm["📊 Content"]:
     st.markdown('<p class="section-head">Maandelijks bereik</p>',unsafe_allow_html=True)
-    mc=st.radio("Metric",["Weergaven","Klikken","Reacties"],horizontal=True,label_visibility="collapsed")
+    ctrl1, ctrl2 = st.columns([3,1])
+    with ctrl1:
+        mc=st.radio("Metric",["Weergaven","Klikken","Reacties"],horizontal=True,label_visibility="collapsed")
+    with ctrl2:
+        show_eng=st.toggle("Mediaan engagement %", value=False)
     bar_colors=[ORANGE if m>=strategy_idx else BLUE for m in monthly["Maand"]]
     fig_m=go.Figure(go.Bar(x=monthly["Maand"],y=monthly[mc],marker_color=bar_colors,text=monthly[mc].apply(lambda v:f"{v/1000:.1f}k" if v>=1000 else str(v)),textposition="outside",textfont=dict(size=10)))
-    fig_m.update_layout(**base_layout(height=300),xaxis=dict(tickangle=-45,showgrid=False),yaxis=dict(showgrid=True,gridcolor="#eee"),bargap=0.35)
+    if show_eng:
+        monthly_eng=df_posts[df_posts["Weergaven"]>0].groupby("Maand")["Engagement_pct"].median().reset_index()
+        monthly_eng.columns=["Maand","Mediaan_eng"]
+        fig_m.add_trace(go.Scatter(x=monthly_eng["Maand"],y=monthly_eng["Mediaan_eng"],mode="lines+markers",name="Mediaan engagement %",line=dict(color=GREEN,width=2),marker=dict(size=6),yaxis="y2",hovertemplate="%{x}<br>Mediaan engagement: %{y:.2f}%<extra></extra>"))
+        fig_m.update_layout(yaxis2=dict(overlaying="y",side="right",showgrid=False,ticksuffix="%",title="Engagement %"))
+    fig_m.update_layout(**base_layout(height=300),xaxis=dict(tickangle=-45,showgrid=False),yaxis=dict(showgrid=True,gridcolor="#eee"),bargap=0.35,legend=dict(orientation="h",y=1.08))
     fig_m.add_annotation(x=0.01,y=1.06,xref="paper",yref="paper",text=f"<b style='color:{ORANGE}'>■</b> Nieuwe strategie &nbsp; <b style='color:{BLUE}'>■</b> Baseline",showarrow=False,font=dict(size=11,color="#888"),align="left")
     st.plotly_chart(fig_m,use_container_width=True)
 
