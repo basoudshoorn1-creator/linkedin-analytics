@@ -312,31 +312,38 @@ if "👥 Volgers" in tm:
         c3.metric("Gem. per dag", f"{fol_growth['Totaal aantal volgers'].mean():.1f}")
         c4.metric("Piek dag", fol_growth.loc[fol_growth["Totaal aantal volgers"].idxmax(),"Datum"].strftime("%d %b %Y"), f"{int(fol_growth['Totaal aantal volgers'].max())} volgers")
 
-        st.markdown('<p class="section-head">Totaal volgers over tijd</p>',unsafe_allow_html=True)
-        fig_f=go.Figure()
-        fig_f.add_trace(go.Scatter(x=fol_growth["Datum"],y=fol_growth["Cumulatief"],fill="tozeroy",line=dict(color=ORANGE,width=2),fillcolor="rgba(234,91,12,0.13)",name="Totaal volgers"))
-        fig_f.add_trace(go.Bar(x=fol_growth["Datum"],y=fol_growth["Totaal aantal volgers"],marker_color=BLUE,opacity=0.5,name="Nieuw per dag",yaxis="y2"))
-        fig_f.update_layout(**base_layout(height=320),
-            yaxis=dict(showgrid=True,gridcolor="#eee",title="Totaal"),
-            yaxis2=dict(overlaying="y",side="right",showgrid=False,title="Nieuw per dag"),
-            legend=dict(orientation="h",y=1.08))
-        st.plotly_chart(fig_f,use_container_width=True)
-
-        st.markdown('<p class="section-head">Nieuwe volgers per maand</p>',unsafe_allow_html=True)
-        fol_agg = fol_growth.copy()
-        fol_agg["Maand"] = fol_agg["Datum"].dt.strftime("%Y-%m")
-        fol_agg = fol_agg.groupby("Maand")["Totaal aantal volgers"].sum().sort_index().reset_index()
-        fol_agg["Maand"] = pd.to_datetime(fol_agg["Maand"]).dt.strftime("%b %Y")
-        fig_agg = go.Figure(go.Bar(
-            x=fol_agg["Maand"], y=fol_agg["Totaal aantal volgers"],
-            marker_color=BLUE,
-            text=fol_agg["Totaal aantal volgers"],
+        # Grafiek 1: nieuwe volgers per dag, per geselecteerde maand
+        st.markdown('<p class="section-head">Nieuwe volgers per dag</p>',unsafe_allow_html=True)
+        fol_growth["_Maand"] = fol_growth["Datum"].dt.strftime("%Y-%m")
+        beschikbare_maanden = sorted(fol_growth["_Maand"].unique())
+        maand_labels = {m: pd.to_datetime(m).strftime("%b %Y") for m in beschikbare_maanden}
+        gekozen_maand = st.selectbox("Maand", options=beschikbare_maanden, format_func=lambda m: maand_labels[m], index=len(beschikbare_maanden)-1, label_visibility="collapsed")
+        fol_dag = fol_growth[fol_growth["_Maand"]==gekozen_maand].copy()
+        fig_dag = go.Figure(go.Bar(
+            x=fol_dag["Datum"], y=fol_dag["Totaal aantal volgers"],
+            marker_color=ORANGE,
+            text=fol_dag["Totaal aantal volgers"],
             textposition="outside", textfont=dict(size=10),
         ))
-        fig_agg.update_layout(**base_layout(height=280),
+        fig_dag.update_layout(**base_layout(height=280),
+            xaxis=dict(tickformat="%d %b", showgrid=False, dtick="D1"),
+            yaxis=dict(showgrid=True, gridcolor="#eee"))
+        st.plotly_chart(fig_dag, use_container_width=True)
+
+        # Grafiek 2: totaal nieuwe volgers per maand
+        st.markdown('<p class="section-head">Nieuwe volgers per maand</p>',unsafe_allow_html=True)
+        fol_maand = fol_growth.groupby("_Maand")["Totaal aantal volgers"].sum().sort_index().reset_index()
+        fol_maand["Label"] = pd.to_datetime(fol_maand["_Maand"]).dt.strftime("%b %Y")
+        fig_maand = go.Figure(go.Bar(
+            x=fol_maand["Label"], y=fol_maand["Totaal aantal volgers"],
+            marker_color=BLUE,
+            text=fol_maand["Totaal aantal volgers"],
+            textposition="outside", textfont=dict(size=10),
+        ))
+        fig_maand.update_layout(**base_layout(height=280),
             xaxis=dict(tickangle=-45, showgrid=False),
             yaxis=dict(showgrid=True, gridcolor="#eee"))
-        st.plotly_chart(fig_agg, use_container_width=True)
+        st.plotly_chart(fig_maand, use_container_width=True)
         d1,d2=st.columns(2)
         with d1:
             st.caption("Branche (top 10)")
