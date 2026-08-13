@@ -262,7 +262,7 @@ with tm["📊 Content"]:
         st.plotly_chart(horiz_bar(rs.assign(D=rs["Dag"].map(DAG_NL)),"Gem_weergaven","D",BLUE),use_container_width=True)
 
     st.markdown('<p class="section-head">Per auteur</p>',unsafe_allow_html=True)
-    aut=df_posts.groupby("Geplaatst_door").agg(Posts=("Titel_kort","count"),Gem_views=("Weergaven","mean"),Gem_eng=("Engagement_pct","mean"),Totaal=("Weergaven","sum")).round(1).sort_values("Totaal",ascending=False).reset_index()
+    aut=df_posts.groupby("Geplaatst_door").agg(Posts=("Titel_kort","count"),Gem_views=("Weergaven","mean"),Gem_eng=("Engagement_pct","mean"),Totaal=("Weergaven","sum")).round(1).sort_values("Gem_eng",ascending=False).reset_index()
     aut["Gem_views"]=aut["Gem_views"].apply(lambda v:f"{int(v):,}".replace(",","."))
     aut["Totaal"]=aut["Totaal"].apply(lambda v:f"{int(v):,}".replace(",","."))
     aut["Gem_eng"]=aut["Gem_eng"].apply(lambda v:f"{v:.1f}%")
