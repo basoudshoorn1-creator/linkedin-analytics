@@ -14,6 +14,10 @@ GRAY   = "#888780"
 DAG_NL = {"Monday":"Maandag","Tuesday":"Dinsdag","Wednesday":"Woensdag","Thursday":"Donderdag","Friday":"Vrijdag","Saturday":"Zaterdag","Sunday":"Zondag"}
 
 MAAND_NL = {"januari":"01","februari":"02","maart":"03","april":"04","mei":"05","juni":"06","juli":"07","augustus":"08","september":"09","oktober":"10","november":"11","december":"12"}
+MAAND_KORT = {"01":"Jan","02":"Feb","03":"Mrt","04":"Apr","05":"Mei","06":"Jun","07":"Jul","08":"Aug","09":"Sep","10":"Okt","11":"Nov","12":"Dec"}
+def fmt_maand(ym):
+    y, m = ym.split("-")
+    return f"{MAAND_KORT.get(m, m)} {y}"
 
 TRELLO_CLUSTER_MAP = {
     "Park ecosysteem":            "Park ecosysteem",
@@ -543,13 +547,18 @@ if "🎯 Strategie clusters" in tm:
                 posts_data = df_trello[df_trello["Label"]==trello_label].sort_values("Maand")
                 if posts_data.empty: continue
 
-                # Use Trello months as the shared x-axis
                 maanden = sorted(posts_data["Maand"].unique())
-                labels_x = [pd.to_datetime(m).strftime("%b %Y") for m in maanden]
+                labels_x = [fmt_maand(m) for m in maanden]
                 posts_y = [int(posts_data[posts_data["Maand"]==m]["Posts"].sum()) for m in maanden]
 
-                # Cluster values only for months that have an export AND fall within Trello range
-                cl_y = [hist_lookup.get((m, cluster_name)) for m in maanden]
+                # Month-over-month cluster delta (only where export data exists)
+                cl_vals = [hist_lookup.get((m, cluster_name)) for m in maanden]
+                cl_delta = []
+                for i, v in enumerate(cl_vals):
+                    if v is None or i == 0 or cl_vals[i-1] is None:
+                        cl_delta.append(None)
+                    else:
+                        cl_delta.append(v - cl_vals[i-1])
 
                 fig_c = go.Figure()
                 fig_c.add_trace(go.Bar(
@@ -557,21 +566,22 @@ if "🎯 Strategie clusters" in tm:
                     name="Posts", marker_color=BLUE, opacity=0.7,
                     text=posts_y, textposition="outside", textfont=dict(size=10),
                 ))
-                if any(v is not None for v in cl_y):
+                if any(v is not None for v in cl_delta):
                     fig_c.add_trace(go.Scatter(
-                        x=labels_x, y=cl_y,
-                        name="Clustergrootte", mode="lines+markers",
+                        x=labels_x, y=cl_delta,
+                        name="Clustergroei (volgers)", mode="lines+markers",
                         line=dict(color=cluster_colors_map.get(cluster_name, ORANGE), width=2),
                         marker=dict(size=7), yaxis="y2",
                         connectgaps=False,
-                        hovertemplate="%{x}<br>%{y:,} volgers<extra></extra>",
+                        hovertemplate="%{x}<br>%{y:+,} volgers<extra></extra>",
                     ))
+                fig_c.add_hline(y=0, line_color="rgba(0,0,0,0.12)", yref="y2")
                 fig_c.update_layout(
                     **base_layout(height=260),
-                    title=dict(text=f"<b>{trello_label}</b> → {cluster_name}", font=dict(size=12)),
+                    title=dict(text=f"<b>{trello_label}</b>", font=dict(size=12)),
                     xaxis=dict(showgrid=False, type="category"),
                     yaxis=dict(showgrid=True, gridcolor="#eee", title="Posts"),
-                    yaxis2=dict(overlaying="y", side="right", showgrid=False, title="Volgers"),
+                    yaxis2=dict(overlaying="y", side="right", showgrid=False, title="Groei volgers"),
                     legend=dict(orientation="h", y=1.12),
                 )
                 with cols_corr[col_idx % 2]:
