@@ -14,11 +14,11 @@ GRAY   = "#888780"
 DAG_NL = {"Monday":"Maandag","Tuesday":"Dinsdag","Wednesday":"Woensdag","Thursday":"Donderdag","Friday":"Vrijdag","Saturday":"Zaterdag","Sunday":"Zondag"}
 
 CLUSTER_DEF = {
-    "Park ecosysteem": {"type":"locatie","keys":["Randstad"]},
-    "Overheid": {"type":"branche","keys":["Overheids","bestuur"]},
-    "Internationaal": {"type":"locatie","keys":["Boston","Parijs","Zürich","Berlijn","Barcelona","London","Kopenhagen","Stockholm","München","Leuven","Gent","New York","Cambridge","Oxford","India"]},
-    "Sector LSH": {"type":"branche","keys":["Biotechnologisch","Geneesmiddelen","Onderzoeksdiensten","Medische praktijken","Ziekenhuizen","medische apparatuur","diagnostisch"]},
-    "Talent": {"type":"mixed","branche_keys":["onderwijs"],"seniority_keys":["Stagiair"]},
+    "Park ecosysteem":           {"type":"locatie","keys":["Randstad"]},
+    "Overheidsinstanties":       {"type":"mixed","branche_keys":["overheidsinstanties","Openbaar bestuur"],"locatie_keys":["Brussel"]},
+    "Internationale bekendheid": {"type":"locatie","keys":["Boston","Parijs","Zürich","Berlijn","Barcelona","London","Oxford","Cambridge","Kopenhagen","Stockholm","München","Leuven","Gent","New York","India"]},
+    "Positionering sector (LSH)":{"type":"branche","keys":["Biotechnologisch","Geneesmiddelen","Onderzoeksdiensten","Medische praktijken","Ziekenhuizen","medische apparatuur","diagnostisch"]},
+    "Onderwijs/talent":          {"type":"mixed","branche_keys":["onderwijs"],"seniority_keys":["Stagiair"],"functie_keys":["onderwijs"]},
 }
 
 st.markdown("""<style>
@@ -96,17 +96,17 @@ def post_table(df):
 def cluster_score(fol_sheets, name):
     c = CLUSTER_DEF[name]
     total = 0
-    if c["type"]=="locatie":
-        df=fol_sheets["Locatie"]; col=df.columns[1]
-        for k in c["keys"]: total+=int(df[df[df.columns[0]].str.contains(k,na=False,case=False)][col].sum())
-    elif c["type"]=="branche":
-        df=fol_sheets["Branche"]; col=df.columns[1]
-        for k in c["keys"]: total+=int(df[df[df.columns[0]].str.contains(k,na=False,case=False)][col].sum())
-    elif c["type"]=="mixed":
-        df_b=fol_sheets["Branche"]; col_b=df_b.columns[1]
-        for k in c.get("branche_keys",[]): total+=int(df_b[df_b[df_b.columns[0]].str.contains(k,na=False,case=False)][col_b].sum())
-        df_s=fol_sheets["Senioriteitsniveau"]; col_s=df_s.columns[1]
-        for k in c.get("seniority_keys",[]): total+=int(df_s[df_s[df_s.columns[0]].str.contains(k,na=False,case=False)][col_s].sum())
+    if c["type"] == "locatie":
+        df = fol_sheets["Locatie"]; col = df.columns[1]
+        for k in c["keys"]: total += int(df[df[df.columns[0]].str.contains(k,na=False,case=False)][col].sum())
+    elif c["type"] == "branche":
+        df = fol_sheets["Branche"]; col = df.columns[1]
+        for k in c["keys"]: total += int(df[df[df.columns[0]].str.contains(k,na=False,case=False)][col].sum())
+    elif c["type"] == "mixed":
+        for sheet, dict_key in [("Locatie","locatie_keys"),("Branche","branche_keys"),("Senioriteitsniveau","seniority_keys"),("Functie","functie_keys")]:
+            if dict_key in c:
+                df = fol_sheets[sheet]; col = df.columns[1]
+                for k in c[dict_key]: total += int(df[df[df.columns[0]].str.contains(k,na=False,case=False)][col].sum())
     return total
 
 # ═══════════════ MAIN ═══════════════
