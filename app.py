@@ -322,18 +322,12 @@ if "👥 Volgers" in tm:
             legend=dict(orientation="h",y=1.08))
         st.plotly_chart(fig_f,use_container_width=True)
 
-        st.markdown('<p class="section-head">Nieuwe volgers per periode</p>',unsafe_allow_html=True)
-        agg_keuze = st.radio("Aggregatie", ["Week","Maand"], horizontal=True, label_visibility="collapsed")
-        if agg_keuze == "Week":
-            fol_agg = fol_growth.copy()
-            fol_agg["Periode"] = fol_agg["Datum"].dt.to_period("W").apply(lambda p: p.start_time.strftime("%d %b"))
-            fol_agg = fol_agg.groupby("Periode", sort=False)["Totaal aantal volgers"].sum().reset_index()
-        else:
-            fol_agg = fol_growth.copy()
-            fol_agg["Periode"] = fol_agg["Datum"].dt.to_period("M").astype(str)
-            fol_agg = fol_agg.groupby("Periode")["Totaal aantal volgers"].sum().reset_index()
+        st.markdown('<p class="section-head">Nieuwe volgers per maand</p>',unsafe_allow_html=True)
+        fol_agg = fol_growth.copy()
+        fol_agg["Maand"] = fol_agg["Datum"].dt.to_period("M").astype(str)
+        fol_agg = fol_agg.groupby("Maand")["Totaal aantal volgers"].sum().reset_index()
         fig_agg = go.Figure(go.Bar(
-            x=fol_agg["Periode"], y=fol_agg["Totaal aantal volgers"],
+            x=fol_agg["Maand"], y=fol_agg["Totaal aantal volgers"],
             marker_color=BLUE,
             text=fol_agg["Totaal aantal volgers"],
             textposition="outside", textfont=dict(size=10),
