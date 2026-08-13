@@ -310,6 +310,42 @@ with tm["📊 Content"]:
     aut.columns=["Auteur","Posts","Gem. views","Gem. engagement","Totaal views"]
     st.dataframe(aut,use_container_width=True,hide_index=True)
 
+    st.markdown('<p class="section-head">Formaat performance</p>',unsafe_allow_html=True)
+    fmt_df = df_posts[df_posts["Weergaven"]>0].groupby("Type_content").agg(
+        Posts=("Titel_kort","count"),
+        Gem_views=("Weergaven","median"),
+        Gem_eng=("Engagement_pct","median"),
+        Totaal_views=("Weergaven","sum"),
+    ).reset_index()
+    fmt_df = fmt_df[fmt_df["Posts"] >= 2]  # minimaal 2 posts voor betrouwbaarheid
+    f1, f2 = st.columns(2)
+    with f1:
+        st.caption("Mediaan engagement % per formaat")
+        fe = fmt_df.sort_values("Gem_eng", ascending=True)
+        fig_fe = go.Figure(go.Bar(
+            x=fe["Gem_eng"], y=fe["Type_content"], orientation="h",
+            marker_color=ORANGE, text=fe["Gem_eng"].apply(lambda v: f"{v:.1f}%"),
+            textposition="outside",
+            customdata=fe["Posts"],
+            hovertemplate="<b>%{y}</b><br>Mediaan engagement: %{x:.1f}%<br>%{customdata} posts<extra></extra>",
+        ))
+        fig_fe.update_layout(**base_layout(height=max(200, len(fe)*40)),
+            xaxis=dict(showgrid=False, visible=False), yaxis=dict(showgrid=False))
+        st.plotly_chart(fig_fe, use_container_width=True)
+    with f2:
+        st.caption("Mediaan bereik (views) per formaat")
+        fv = fmt_df.sort_values("Gem_views", ascending=True)
+        fig_fv = go.Figure(go.Bar(
+            x=fv["Gem_views"], y=fv["Type_content"], orientation="h",
+            marker_color=BLUE, text=fv["Gem_views"].apply(lambda v: f"{int(v):,}".replace(",",".")),
+            textposition="outside",
+            customdata=fv["Posts"],
+            hovertemplate="<b>%{y}</b><br>Mediaan views: %{x:,}<br>%{customdata} posts<extra></extra>",
+        ))
+        fig_fv.update_layout(**base_layout(height=max(200, len(fv)*40)),
+            xaxis=dict(showgrid=False, visible=False), yaxis=dict(showgrid=False))
+        st.plotly_chart(fig_fv, use_container_width=True)
+
     st.markdown('<p class="section-head">Top posts</p>',unsafe_allow_html=True)
     t1,t2,t3=st.tabs(["Meeste views","Hoogste engagement","Nieuwe strategie"])
     with t1: post_table(df_posts.sort_values("Weergaven",ascending=False).head(10))
