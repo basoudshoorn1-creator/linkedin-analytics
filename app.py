@@ -490,28 +490,6 @@ if "🎯 Strategie clusters" in tm:
             bargap=0.4,
             legend=dict(orientation="h",y=1.08))
         st.plotly_chart(fig_cl,use_container_width=True)
-        st.markdown('<p class="section-head">Internationale spreiding</p>',unsafe_allow_html=True)
-        intl_cities=["Boston","Parijs","Zürich","Berlijn","Barcelona","London","Kopenhagen","Stockholm","München","Leuven","Gent","New York","Cambridge","Oxford","India"]
-        df_loc=fol_sheets["Locatie"]
-        rows=[{"Stad":city,"Volgers":int(df_loc[df_loc[df_loc.columns[0]].str.contains(city,na=False,case=False)][df_loc.columns[1]].sum())} for city in intl_cities]
-        rows=[r for r in rows if r["Volgers"]>0]
-        if rows:
-            df_i=pd.DataFrame(rows).sort_values("Volgers",ascending=True)
-            fig_i=go.Figure(go.Bar(x=df_i["Volgers"],y=df_i["Stad"],orientation="h",marker_color=GREEN,text=df_i["Volgers"],textposition="outside"))
-            fig_i.update_layout(**base_layout(height=max(200,len(df_i)*32)),xaxis=dict(showgrid=False,visible=False),yaxis=dict(showgrid=False))
-            st.plotly_chart(fig_i,use_container_width=True)
-        st.markdown('<p class="section-head">LSH sector breakdown</p>',unsafe_allow_html=True)
-        df_br=fol_sheets["Branche"]
-        lsh_keys=["Biotechnologisch","Geneesmiddelen","Onderzoeksdiensten","Medische praktijken","Ziekenhuizen","medische apparatuur","diagnostisch"]
-        lsh_rows=[]
-        for k in lsh_keys:
-            for _,row in df_br[df_br[df_br.columns[0]].str.contains(k,na=False,case=False)].iterrows():
-                lsh_rows.append({"Branche":row.iloc[0][:45],"Volgers":int(row.iloc[1])})
-        if lsh_rows:
-            df_lsh=pd.DataFrame(lsh_rows).sort_values("Volgers",ascending=True)
-            fig_lsh=go.Figure(go.Bar(x=df_lsh["Volgers"],y=df_lsh["Branche"],orientation="h",marker_color=BLUE,text=df_lsh["Volgers"],textposition="outside"))
-            fig_lsh.update_layout(**base_layout(height=max(200,len(df_lsh)*32)),xaxis=dict(showgrid=False,visible=False),yaxis=dict(showgrid=False))
-            st.plotly_chart(fig_lsh,use_container_width=True)
 
 # ── CONCURRENTEN TAB ──
 if "🏆 Concurrenten" in tm:
