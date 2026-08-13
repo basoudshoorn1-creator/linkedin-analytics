@@ -152,7 +152,8 @@ if visitors_file: vis_data,vis_sheets=load_visitors(visitors_file.read())
 if competitor_file: df_comp=load_competitors(competitor_file.read())
 
 df_stats_m=df_stats.copy(); df_stats_m["Maand"]=df_stats_m["Datum"].dt.to_period("M").astype(str)
-monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Reposts=("Reposts_totaal","sum")).reset_index()
+monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Reposts=("Reposts_totaal","sum"),Engagement_acties=("Engagement_totaal","sum")).reset_index()
+monthly["Engagement_rate"]=monthly["Engagement_acties"]/monthly["Weergaven"].replace(0,pd.NA)*100
 days=df_posts[df_posts["Dag"].isin(DAG_NL)].groupby("Dag").agg(Gem_weergaven=("Weergaven","mean"),Gem_engagement=("Engagement_pct","mean"),Aantal_posts=("Titel_kort","count")).reset_index()
 posts_new=df_posts[df_posts["Maand"]>=strategy_idx]; posts_old=df_posts[df_posts["Maand"]<strategy_idx]
 # Only posts with actual views, use median to avoid outlier distortion
@@ -228,17 +229,24 @@ with tm["📊 Content"]:
     st.markdown('<p class="section-head">Maandelijks bereik</p>',unsafe_allow_html=True)
     ctrl1, ctrl2 = st.columns([3,1])
     with ctrl1:
-        mc=st.radio("Metric",["Weergaven","Klikken","Reacties"],horizontal=True,label_visibility="collapsed")
+        mc=st.radio("Metric",["Weergaven","Klikken","Reacties","Engagement %"],horizontal=True,label_visibility="collapsed")
     with ctrl2:
         show_eng=st.toggle("Mediaan engagement %", value=False)
     bar_colors=[ORANGE if m>=strategy_idx else BLUE for m in monthly["Maand"]]
-    fig_m=go.Figure(go.Bar(x=monthly["Maand"],y=monthly[mc],marker_color=bar_colors,text=monthly[mc].apply(lambda v:f"{v/1000:.1f}k" if v>=1000 else str(v)),textposition="outside",textfont=dict(size=10)))
+    if mc == "Engagement %":
+        y_vals = monthly["Engagement_rate"]
+        fmt_fn = lambda v: f"{v:.2f}%" if pd.notna(v) else ""
+    else:
+        y_vals = monthly[mc]
+        fmt_fn = lambda v: f"{v/1000:.1f}k" if v>=1000 else str(v)
+    fig_m=go.Figure(go.Bar(x=monthly["Maand"],y=y_vals,marker_color=bar_colors,text=y_vals.apply(fmt_fn),textposition="outside",textfont=dict(size=10)))
     if show_eng:
         monthly_eng=df_posts[df_posts["Weergaven"]>0].groupby("Maand")["Engagement_pct"].median().reset_index()
         monthly_eng.columns=["Maand","Mediaan_eng"]
         fig_m.add_trace(go.Scatter(x=monthly_eng["Maand"],y=monthly_eng["Mediaan_eng"],mode="lines+markers",name="Mediaan engagement %",line=dict(color=GREEN,width=2),marker=dict(size=6),yaxis="y2",hovertemplate="%{x}<br>Mediaan engagement: %{y:.2f}%<extra></extra>"))
         fig_m.update_layout(yaxis2=dict(overlaying="y",side="right",showgrid=False,ticksuffix="%",title="Engagement %"))
-    fig_m.update_layout(**base_layout(height=300),xaxis=dict(tickangle=-45,showgrid=False),yaxis=dict(showgrid=True,gridcolor="#eee"),bargap=0.35,legend=dict(orientation="h",y=1.08))
+    yaxis_cfg=dict(showgrid=True,gridcolor="#eee",ticksuffix="%" if mc=="Engagement %" else "")
+    fig_m.update_layout(**base_layout(height=300),xaxis=dict(tickangle=-45,showgrid=False),yaxis=yaxis_cfg,bargap=0.35,legend=dict(orientation="h",y=1.08))
     fig_m.add_annotation(x=0.01,y=1.06,xref="paper",yref="paper",text=f"<b style='color:{ORANGE}'>■</b> Nieuwe strategie &nbsp; <b style='color:{BLUE}'>■</b> Baseline",showarrow=False,font=dict(size=11,color="#888"),align="left")
     st.plotly_chart(fig_m,use_container_width=True)
 
