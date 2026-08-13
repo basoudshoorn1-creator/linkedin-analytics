@@ -152,8 +152,8 @@ if visitors_file: vis_data,vis_sheets=load_visitors(visitors_file.read())
 if competitor_file: df_comp=load_competitors(competitor_file.read())
 
 df_stats_m=df_stats.copy(); df_stats_m["Maand"]=df_stats_m["Datum"].dt.to_period("M").astype(str)
-monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Reposts=("Reposts_totaal","sum"),Engagement_acties=("Engagement_totaal","sum")).reset_index()
-monthly["Engagement_rate"]=monthly["Engagement_acties"]/monthly["Weergaven"].replace(0,pd.NA)*100
+monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Comments=("Comments_totaal","sum"),Reposts=("Reposts_totaal","sum")).reset_index()
+monthly["Engagement_rate"]=(monthly["Klikken"]+monthly["Reacties"]+monthly["Comments"]+monthly["Reposts"])/monthly["Weergaven"].replace(0,pd.NA)*100
 days=df_posts[df_posts["Dag"].isin(DAG_NL)].groupby("Dag").agg(Gem_weergaven=("Weergaven","mean"),Gem_engagement=("Engagement_pct","mean"),Aantal_posts=("Titel_kort","count")).reset_index()
 posts_new=df_posts[df_posts["Maand"]>=strategy_idx]; posts_old=df_posts[df_posts["Maand"]<strategy_idx]
 # Only posts with actual views, use median to avoid outlier distortion
