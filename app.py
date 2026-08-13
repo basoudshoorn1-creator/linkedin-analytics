@@ -143,8 +143,9 @@ if followers_files:
         clusters = {c: cluster_score(s, c) for c in CLUSTER_DEF.keys()}
         fol_loaded.append((export_date, g, s, clusters))
     fol_loaded.sort(key=lambda x: x[0])
-    # Use most recent for current display
-    fol_growth = fol_loaded[-1][1]
+    # Combine all growth data across exports, deduplicate by date
+    fol_growth = pd.concat([g for _, g, _, _ in fol_loaded], ignore_index=True)
+    fol_growth = fol_growth.drop_duplicates(subset=["Datum"], keep="last").sort_values("Datum").reset_index(drop=True)
     fol_sheets = fol_loaded[-1][2]
     # Build history for trend chart
     fol_history = [(d, cl) for d, g, s, cl in fol_loaded]
