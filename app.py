@@ -344,24 +344,6 @@ if "👥 Volgers" in tm:
             xaxis=dict(tickangle=-45, showgrid=False),
             yaxis=dict(showgrid=True, gridcolor="#eee"))
         st.plotly_chart(fig_maand, use_container_width=True)
-        d1,d2=st.columns(2)
-        with d1:
-            st.caption("Branche (top 10)")
-            df_b=fol_sheets["Branche"].head(10).sort_values(fol_sheets["Branche"].columns[1],ascending=True)
-            st.plotly_chart(horiz_bar(df_b,df_b.columns[1],df_b.columns[0],ORANGE,height=300),use_container_width=True)
-        with d2:
-            st.caption("Functie (top 10)")
-            df_fn=fol_sheets["Functie"].head(10).sort_values(fol_sheets["Functie"].columns[1],ascending=True)
-            st.plotly_chart(horiz_bar(df_fn,df_fn.columns[1],df_fn.columns[0],BLUE,height=300),use_container_width=True)
-        d3,d4=st.columns(2)
-        with d3:
-            st.caption("Senioriteitsniveau")
-            df_sn=fol_sheets["Senioriteitsniveau"].sort_values(fol_sheets["Senioriteitsniveau"].columns[1],ascending=True)
-            st.plotly_chart(horiz_bar(df_sn,df_sn.columns[1],df_sn.columns[0],GREEN,height=250),use_container_width=True)
-        with d4:
-            st.caption("Top locaties")
-            df_lo=fol_sheets["Locatie"].head(10).sort_values(fol_sheets["Locatie"].columns[1],ascending=True)
-            st.plotly_chart(horiz_bar(df_lo,df_lo.columns[1],df_lo.columns[0],GRAY,height=250),use_container_width=True)
 
 # ── BEZOEKERS TAB ──
 if "👁 Bezoekers" in tm:
