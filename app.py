@@ -13,6 +13,16 @@ GRAY   = "#888780"
 
 DAG_NL = {"Monday":"Maandag","Tuesday":"Dinsdag","Wednesday":"Woensdag","Thursday":"Donderdag","Friday":"Vrijdag","Saturday":"Zaterdag","Sunday":"Zondag"}
 
+MAAND_NL = {"januari":"01","februari":"02","maart":"03","april":"04","mei":"05","juni":"06","juli":"07","augustus":"08","september":"09","oktober":"10","november":"11","december":"12"}
+
+TRELLO_CLUSTER_MAP = {
+    "Park ecosysteem":            "Park ecosysteem",
+    "Onderwijs/Talent":           "Onderwijs/talent",
+    "LSH":                        "Positionering sector (LSH)",
+    "Internationale positionering":"Internationale bekendheid",
+    "Lobby + politiek":           "Overheidsinstanties",
+}
+
 CLUSTER_DEF = {
     "Park ecosysteem":           {"type":"locatie","keys":["Randstad"]},
     "Overheidsinstanties":       {"type":"mixed","branche_keys":["overheidsinstanties","Openbaar bestuur"],"locatie_keys":["Brussel"]},
@@ -74,6 +84,28 @@ def load_competitors(file_bytes):
     df.columns = ["Pagina","Nieuwe_volgers","Bijdragen","Commentaren","Commentaren_per_dag","Reacties"]
     return df[df["Pagina"].notna()]
 
+@st.cache_data(show_spinner=False)
+def load_trello(file_bytes):
+    df = pd.read_excel(io.BytesIO(file_bytes))
+    df.columns = ["Label"] + [str(c).strip() for c in df.columns[1:]]
+    df = df[df["Label"].notna()].copy()
+    df["Label"] = df["Label"].astype(str).str.strip()
+    df = df[df["Label"] != "nan"]
+    # Drop totals row (purely numeric label or empty)
+    df = df[~df["Label"].str.match(r'^\d+$')]
+    df_long = df.melt(id_vars="Label", var_name="Maand_naam", value_name="Posts")
+    df_long["Posts"] = pd.to_numeric(df_long["Posts"], errors="coerce").fillna(0).astype(int)
+    # Convert Dutch month name to YYYY-MM (infer year from current data range)
+    def to_ym(naam):
+        naam_l = str(naam).lower().strip()
+        m = MAAND_NL.get(naam_l)
+        if not m: return None
+        year = 2026
+        return f"{year}-{m}"
+    df_long["Maand"] = df_long["Maand_naam"].apply(to_ym)
+    df_long = df_long[df_long["Maand"].notna()]
+    return df_long
+
 def base_layout(**kw):
     return dict(paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",font=dict(family="Helvetica Neue,sans-serif",size=12,color="#555"),margin=dict(l=0,r=0,t=24,b=0),**kw)
 
@@ -116,6 +148,7 @@ content_files = st.sidebar.file_uploader("Content export(s)", type=["xls"], acce
 followers_files = st.sidebar.file_uploader("Volgers exports (meerdere mag)", type=["xls"], accept_multiple_files=True)
 visitors_file = st.sidebar.file_uploader("Bezoekers export", type=["xls"])
 competitor_file = st.sidebar.file_uploader("Concurrenten export", type=["xlsx"])
+trello_file = st.sidebar.file_uploader("Thema-overzicht (Trello)", type=["xlsx","xls"])
 
 if not content_files:
     st.info("Upload minimaal de **Content export** via de sidebar. Volgers, Bezoekers en Concurrenten zijn optioneel.")
@@ -151,6 +184,7 @@ if followers_files:
     fol_history = [(d, cl) for d, g, s, cl in fol_loaded]
 if visitors_file: vis_data,vis_sheets=load_visitors(visitors_file.read())
 if competitor_file: df_comp=load_competitors(competitor_file.read())
+df_trello = load_trello(trello_file.read()) if trello_file else None
 
 df_stats_m=df_stats.copy(); df_stats_m["Maand"]=df_stats_m["Datum"].dt.to_period("M").astype(str)
 monthly=df_stats_m.groupby("Maand").agg(Weergaven=("Weergaven_totaal","sum"),Klikken=("Klikken_totaal","sum"),Reacties=("Reacties_totaal","sum"),Comments=("Comments_totaal","sum"),Reposts=("Reposts_totaal","sum")).reset_index()
@@ -493,6 +527,56 @@ if "🎯 Strategie clusters" in tm:
             bargap=0.4,
             legend=dict(orientation="h",y=1.08))
         st.plotly_chart(fig_cl,use_container_width=True)
+
+        # ── POSTS VS CLUSTERGROEI ──
+        if df_trello is not None and len(fol_history) >= 1:
+            st.markdown('<p class="section-head">Posts per thema vs clustergrootte</p>', unsafe_allow_html=True)
+            st.caption("Bars = aantal posts dat thema (Trello) · Lijn = clustergrootte bij export")
+
+            # Cluster values per export month
+            hist_df = pd.DataFrame([
+                {"Maand": d.strftime("%Y-%m"), "Cluster": cn, "Waarde": cl[cn]}
+                for d, cl in fol_history for cn in cnames
+            ])
+
+            cluster_colors_map = dict(zip(cnames, ccols))
+            cols_corr = st.columns(2)
+            col_idx = 0
+            for trello_label, cluster_name in TRELLO_CLUSTER_MAP.items():
+                posts_data = df_trello[df_trello["Label"]==trello_label].sort_values("Maand")
+                cluster_data = hist_df[hist_df["Cluster"]==cluster_name].sort_values("Maand")
+                if posts_data.empty: continue
+
+                maanden = sorted(posts_data["Maand"].unique())
+                labels_x = [pd.to_datetime(m).strftime("%b %Y") for m in maanden]
+                posts_y = [int(posts_data[posts_data["Maand"]==m]["Posts"].sum()) for m in maanden]
+
+                fig_c = go.Figure()
+                fig_c.add_trace(go.Bar(
+                    x=labels_x, y=posts_y,
+                    name="Posts", marker_color=BLUE, opacity=0.7,
+                    text=posts_y, textposition="outside", textfont=dict(size=10),
+                ))
+                if not cluster_data.empty:
+                    cl_labels = [pd.to_datetime(m).strftime("%b %Y") for m in cluster_data["Maand"]]
+                    fig_c.add_trace(go.Scatter(
+                        x=cl_labels, y=cluster_data["Waarde"].tolist(),
+                        name="Clustergrootte", mode="lines+markers",
+                        line=dict(color=cluster_colors_map.get(cluster_name, ORANGE), width=2),
+                        marker=dict(size=7), yaxis="y2",
+                        hovertemplate="%{x}<br>%{y:,} volgers<extra></extra>",
+                    ))
+                fig_c.update_layout(
+                    **base_layout(height=260),
+                    title=dict(text=f"<b>{trello_label}</b> → {cluster_name}", font=dict(size=12)),
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(showgrid=True, gridcolor="#eee", title="Posts"),
+                    yaxis2=dict(overlaying="y", side="right", showgrid=False, title="Volgers"),
+                    legend=dict(orientation="h", y=1.12),
+                )
+                with cols_corr[col_idx % 2]:
+                    st.plotly_chart(fig_c, use_container_width=True)
+                col_idx += 1
 
 # ── CONCURRENTEN TAB ──
 if "🏆 Concurrenten" in tm:
