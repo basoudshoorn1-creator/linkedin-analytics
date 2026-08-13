@@ -324,8 +324,9 @@ if "👥 Volgers" in tm:
 
         st.markdown('<p class="section-head">Nieuwe volgers per maand</p>',unsafe_allow_html=True)
         fol_agg = fol_growth.copy()
-        fol_agg["Maand"] = fol_agg["Datum"].dt.to_period("M").astype(str)
-        fol_agg = fol_agg.groupby("Maand")["Totaal aantal volgers"].sum().reset_index()
+        fol_agg["Maand"] = fol_agg["Datum"].dt.strftime("%Y-%m")
+        fol_agg = fol_agg.groupby("Maand")["Totaal aantal volgers"].sum().sort_index().reset_index()
+        fol_agg["Maand"] = pd.to_datetime(fol_agg["Maand"]).dt.strftime("%b %Y")
         fig_agg = go.Figure(go.Bar(
             x=fol_agg["Maand"], y=fol_agg["Totaal aantal volgers"],
             marker_color=BLUE,
